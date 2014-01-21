@@ -1,0 +1,23 @@
+#!/bin/sh
+
+fsm_config="meshfsm"
+
+if test_connectivity $fsm_config internet; then
+	if pgrep fastd; then
+		local fastd_neighbors=`batctl o | grep mesh-vpn | wc -l`
+		if [[ $fastd_neighbors -lt 1 ]]; then
+			/etc/init.d/fastd restart
+			logger -t fastd_watchdog "fastd restarted (no neighbors via mesh-vpn interface)"
+		fi
+	elif ! pgrep fastd && [ $(uci -q get fastd.mesh_vpn.enabled) == "1" ]; then
+			/etc/init.d/fastd start
+			logger -t fastd_watchdog "fastd started (internet connection working & fastd enabled in config)"
+	fi
+else
+	if pgrep fastd; then
+		/etc/init.d/fastd stop
+		logger -t fastd_watchdog "Stopping fastd, we dont have internet on the wan port."
+	fi
+fi
+exit 0
+
